@@ -130,12 +130,17 @@ jobs:
           }
           lines = props.read_text().splitlines(keepends=True)
           result = []
+          found = set()
           for line in lines:
               key = line.split('=', 1)[0].strip()
               if key in replacements:
                   result.append(f'{key}={replacements[key]}\n')
+                  found.add(key)
               else:
                   result.append(line)
+          for key, value in replacements.items():
+              if key not in found:
+                  result.append(f'{key}={value}\n')
           props.write_text(''.join(result))
           EOF
 

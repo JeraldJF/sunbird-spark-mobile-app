@@ -105,12 +105,42 @@ jobs:
           encodedString: ${{ secrets.GOOGLE_SERVICE_CONTENT }}
 
       - name: Replace secrets in gradle.properties
+        env:
+          BASE_URL: ${{ vars.BASE_URL }}
+          MOBILE_APP_KEY: ${{ secrets.MOBILE_APP_KEY }}
+          MOBILE_APP_SECRET: ${{ secrets.MOBILE_APP_SECRET }}
+          MOBILE_APP_CONSUMER: ${{ secrets.MOBILE_APP_CONSUMER }}
+          PRODUCER_ID: ${{ vars.PRODUCER_ID }}
+          APP_VERSION: ${{ needs.determine-env.outputs.version }}
         run: |
-          sed -i "s|^base_url=.*|base_url=${{ vars.BASE_URL }}|" android/gradle.properties
-          sed -i "s|^mobile_app_key=.*|mobile_app_key=${{ secrets.MOBILE_APP_KEY }}|" android/gradle.properties
-          sed -i "s|^mobile_app_secret=.*|mobile_app_secret=${{ secrets.MOBILE_APP_SECRET }}|" android/gradle.properties
-          sed -i "s|^mobile_app_consumer=.*|mobile_app_consumer=${{ secrets.MOBILE_APP_CONSUMER }}|" android/gradle.properties
-          sed -i "s|^producer_id=.*|producer_id=${{ vars.PRODUCER_ID }}|" android/gradle.properties
+          python3 - <<'EOF'
+          import os
+          from pathlib import Path
+
+          props = Path('android/gradle.properties')
+          replacements = {
+              'base_url': os.environ['BASE_URL'],
+              'mobile_app_key': os.environ['MOBILE_APP_KEY'],
+              'mobile_app_secret': os.environ['MOBILE_APP_SECRET'],
+              'mobile_app_consumer': os.environ['MOBILE_APP_CONSUMER'],
+              'producer_id': os.environ['PRODUCER_ID'],
+              'app_version': os.environ['APP_VERSION'],
+          }
+          lines = props.read_text().splitlines(keepends=True)
+          result = []
+          found = set()
+          for line in lines:
+              key = line.split('=', 1)[0].strip()
+              if key in replacements:
+                  result.append(f'{key}={replacements[key]}\n')
+                  found.add(key)
+              else:
+                  result.append(line)
+          for key, value in replacements.items():
+              if key not in found:
+                  result.append(f'{key}={value}\n')
+          props.write_text(''.join(result))
+          EOF
 
       - name: Decode keystore
         id: decode_keystore
