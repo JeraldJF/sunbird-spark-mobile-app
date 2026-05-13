@@ -27,36 +27,37 @@
   "license": "MIT",
   "overrides": {
     "@project-sunbird/telemetry-sdk": "^2.0.1",
-    "express": "^4.21.2",
-    "node-rest-client": "^3.1.1",
-    "xml2json": {
-      "hoek": "npm:@hapi/hoek@^8.5.1"
-    },
-    "underscore": "^1.13.7",
-    "audiosprite": {
-      "optimist": "^0.6.1",
-      "underscore": "^1.13.7"
-    },
-    "decompress": "^4.2.1",
-    "got": "^11.8.6",
     "lodash": "^4.18.1",
-    "lodash.template": "^4.5.0",
-    "qs": "^6.14.0",
-    "braces": "^3.0.3",
-    "micromatch": "^4.0.8",
-    "chokidar": "^3.6.0",
-    "ws": "^8.18.0",
-    "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1",
-    "socket.io-parser": "^4.2.4",
-    "engine.io": "^6.6.2",
-    "engine.io-client": "^6.6.2",
-    "minimist": "^1.2.8",
-    "cookie": "^0.7.2",
-    "send": "^0.19.0",
-    "joi": "^17.13.3",
-    "hoek": "npm:@hapi/hoek@^8.5.1",
-    "tmp": "^0.2.3"
+    "@project-sunbird/content-player": {
+      "express": "^4.21.2",
+      "node-rest-client": "^3.1.1",
+      "underscore": "^1.13.7",
+      "decompress": "^4.2.1",
+      "got": "^11.8.6",
+      "lodash": "^4.18.1",
+      "lodash.template": "^4.5.0",
+      "qs": "^6.14.0",
+      "braces": "^3.0.3",
+      "micromatch": "^4.0.8",
+      "minimist": "^1.2.8",
+      "cookie": "^0.7.2",
+      "send": "^0.19.0",
+      "joi": "^17.13.3",
+      "tmp": "^0.2.3",
+      "xml2json": {
+        "hoek": "npm:@hapi/hoek@^8.5.1"
+      },
+      "audiosprite": {
+        "optimist": "^0.6.1",
+        "underscore": "^1.13.7"
+      }
+    },
+    "happy-dom": {
+      "ws": "^8.18.0"
+    },
+    "jsdom": {
+      "ws": "^8.18.0"
+    }
   },
   "dependencies": {
     "@capacitor-community/sqlite": "^8.0.0",
