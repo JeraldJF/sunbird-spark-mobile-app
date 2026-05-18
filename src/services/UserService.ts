@@ -224,6 +224,15 @@ class UserService {
   async deleteUser(userId: string): Promise<ApiResponse<any>> {
     return getClient().post('/user/v1/delete', { request: { userId } });
   }
+
+  /** Check whether a given email is registered. Returns the matched user's id when exists. */
+  async checkEmailExists(
+    email: string,
+  ): Promise<ApiResponse<{ exists: boolean; id?: string; name?: string }>> {
+    // Sunbird's endpoint doesn't decode %-encoded path segments — pass the email raw
+    // so `@` arrives as `@`. The caller has already validated format upstream.
+    return getClient().get(`/user/v1/exists/email/${email}`);
+  }
 }
 
 export const userService = UserService.getInstance();

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     IonContent,
@@ -14,19 +14,15 @@ import {
 } from '@ionic/react';
 import { IonIcon } from '@ionic/react';
 import { chevronBackOutline } from 'ionicons/icons';
-import { GoogleReCaptchaProvider, useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 import { useAuth } from '../contexts/AuthContext';
 import { useUser } from '../hooks/useUser';
-import { useDeleteAccount } from '../hooks/useDeleteAccount';
+import { useDeleteAccount, OTP_LENGTH, MAX_RESEND } from '../hooks/useDeleteAccount';
 import { useSystemSetting } from '../hooks/useSystemSetting';
 import useInteract from '../hooks/useInteract';
 import { useNetwork } from '../providers/NetworkProvider';
-import { TriggerCaptcha } from '../hooks/useEditProfile';
 import useImpression from '../hooks/useImpression';
 import './PersonalDetailsPage.css';
 import './DeleteAccountPage.css';
-
-const OTP_LENGTH = 6;
 
 const CONDITIONS_KEYS = [
     'deleteCondition1',
@@ -38,8 +34,7 @@ const CONDITIONS_KEYS = [
     'deleteCondition7',
 ] as const;
 
-// ── Inner component — consumes reCAPTCHA context ─────────────────────────────
-const DeleteAccountBody: React.FC = () => {
+const DeleteAccountPage: React.FC = () => {
     useImpression({ pageid: 'DeleteAccountPage', env: 'profile' });
     const { t } = useTranslation();
     const router = useIonRouter();
@@ -52,7 +47,11 @@ const DeleteAccountBody: React.FC = () => {
     const { userId, isAuthenticated } = useAuth();
     const { data: profile } = useUser(userId);
     const { isOffline } = useNetwork();
-    const { executeRecaptcha } = useGoogleReCaptcha();
+
+    // Honor backend toggle — when verifyOtpOnDelete === 'false', skip OTP and use confirm alert
+    const { data: verifyOtpSetting } = useSystemSetting('verifyOtpOnDelete');
+    const verifyOtpValue = (verifyOtpSetting?.data as any)?.response?.value;
+    const skipOtpVerification = verifyOtpValue === 'false';
 
     const roles: string[] = React.useMemo(() => {
         const roleSet = new Set<string>();
@@ -82,17 +81,11 @@ const DeleteAccountBody: React.FC = () => {
         }
     }, [isAuthenticated, roles, t]);
 
-    const triggerCaptcha = useCallback<TriggerCaptcha>((callback) => {
-        if (!executeRecaptcha) {
-            callback(null);
-            return;
-        }
-        executeRecaptcha('delete_account')
-            .then(token => callback(token))
-            .catch(() => callback(null));
-    }, [executeRecaptcha]);
-
     const {
+        email,
+        emailError,
+        isCheckingEmail,
+        handleEmailChange,
         checkedConditions,
         allChecked,
         otpValue,
@@ -114,7 +107,7 @@ const DeleteAccountBody: React.FC = () => {
         resetOtpModal,
         dismissConfirmAlert,
         confirmDirectDelete,
-    } = useDeleteAccount(userId, profile, triggerCaptcha);
+    } = useDeleteAccount(userId, skipOtpVerification);
 
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -158,7 +151,18 @@ const DeleteAccountBody: React.FC = () => {
         return `${m}:${sec}`;
     };
 
-    const submitDisabled = !allChecked || isOffline || otpStatus === 'sending-otp' || isDeleting;
+    // While OTP is in flight or modal is open the email field is locked so the user
+    // can't change it under the OTP we just sent.
+    const emailLocked = isCheckingEmail || showOtpModal || isDeleting || otpStatus === 'sending-otp';
+
+    const submitDisabled =
+        !allChecked ||
+        isOffline ||
+        isCheckingEmail ||
+        otpStatus === 'sending-otp' ||
+        isDeleting ||
+        // Email is only required on the OTP path.
+        (!skipOtpVerification && !email.trim());
 
     return (
         <IonPage className="delete-account-page">
@@ -186,6 +190,33 @@ const DeleteAccountBody: React.FC = () => {
                         <div className="da-warning-banner">
                             <p className="da-warning-text">{t('deleteAccountWarning')}</p>
                         </div>
+
+                        {/* Email confirmation — only shown when OTP is required */}
+                        {!skipOtpVerification && (
+                            <div className="da-email-section">
+                                <label htmlFor="da-email-input" className="da-email-label">
+                                    {t('deleteAccountEmailLabel')}
+                                </label>
+                                <input
+                                    id="da-email-input"
+                                    type="email"
+                                    inputMode="email"
+                                    autoComplete="email"
+                                    className="da-email-input"
+                                    placeholder={t('deleteAccountEmailPlaceholder')}
+                                    value={email}
+                                    onChange={(e) => handleEmailChange(e.target.value)}
+                                    disabled={emailLocked}
+                                    aria-invalid={!!emailError}
+                                    aria-describedby={emailError ? 'da-email-error' : undefined}
+                                />
+                                {emailError && (
+                                    <p id="da-email-error" className="da-email-error" role="alert">
+                                        {emailError}
+                                    </p>
+                                )}
+                            </div>
+                        )}
 
                         {/* Conditions section */}
                         <div className="da-conditions-section">
@@ -224,7 +255,11 @@ const DeleteAccountBody: React.FC = () => {
                     disabled={submitDisabled}
                     onClick={handleSubmit}
                 >
-                    {isOffline ? t('deleteAccountOfflineButton') : t('deleteAccount')}
+                    {isOffline
+                        ? t('deleteAccountOfflineButton')
+                        : isCheckingEmail
+                        ? t('verifying')
+                        : t('deleteAccount')}
                 </button>
             </div>
 
@@ -354,24 +389,6 @@ const DeleteAccountBody: React.FC = () => {
                 position="bottom"
             />
         </IonPage>
-    );
-};
-
-const MAX_RESEND = 4;
-
-// ── Outer component — resolves reCAPTCHA key and provides context ─────────────
-const DeleteAccountPage: React.FC = () => {
-    const { data: captchaSetting } = useSystemSetting('portal_google_recaptcha_site_key');
-    const captchaSiteKey = (captchaSetting?.data as any)?.response?.value ?? '';
-
-    if (!captchaSiteKey) {
-        return <DeleteAccountBody />;
-    }
-
-    return (
-        <GoogleReCaptchaProvider reCaptchaKey={captchaSiteKey}>
-            <DeleteAccountBody />
-        </GoogleReCaptchaProvider>
     );
 };
 

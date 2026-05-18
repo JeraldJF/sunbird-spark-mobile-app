@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { otpService } from '../services/OtpService';
 import { userService } from '../services/UserService';
@@ -6,31 +6,31 @@ import { networkService } from '../services/network/networkService';
 import { useAuth } from '../contexts/AuthContext';
 import { useTelemetry } from './useTelemetry';
 import useInteract from './useInteract';
-import type { TriggerCaptcha } from './useEditProfile';
-import type { UserProfile } from '../types/userTypes';
 import type { OtpType } from '../types/otpTypes';
 
 export type DeleteStatus = 'idle' | 'sending-otp' | 'otp-sent' | 'verifying-otp' | 'deleting' | 'error';
 
-const OTP_LENGTH = 6;
+export const OTP_LENGTH = 6;
 const OTP_COUNTDOWN = 60;
-const MAX_RESEND = 4;
+export const MAX_RESEND = 4;
 const NUM_CONDITIONS = 7;
+
+// RFC 5322 simplified — good enough for client-side format validation.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const useDeleteAccount = (
   userId: string | null,
-  profile: UserProfile | undefined,
-  triggerCaptcha: TriggerCaptcha,
+  skipOtpVerification: boolean,
 ) => {
   const { t } = useTranslation();
   const { logout } = useAuth();
   const telemetry = useTelemetry();
   const { interact } = useInteract();
 
-  // OTP disabled — backend OTP endpoint does not support the masked email/phone
-  // returned by the profile API. Re-enable once backend supports type:'userId'.
-  // TODO: replace with useSystemSetting('verifyOtpOnDelete') when backend is ready.
-  const skipOtpVerification = true;
+  // ── Email confirmation (typed by user — required for OTP path) ──────────────
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
 
   // ── Conditions ──────────────────────────────────────────────────────────────
   const [checkedConditions, setCheckedConditions] = useState<Set<number>>(new Set());
@@ -56,11 +56,13 @@ export const useDeleteAccount = (
   const mountedRef = useRef(true);
   const isSubmittingRef = useRef(false);
 
-  // Use userId as the OTP key — profile.email/phone are masked (e.g. te****@yopmail.com)
-  // and the OTP API rejects masked values. The backend resolves the actual contact from userId.
-  const otpContact = userId
-    ? { key: userId, type: 'userId' as OtpType }
-    : null;
+  // OTP target is the unmasked email typed on the page. profile.email from /user/v5/read
+  // is masked by the backend, so we cannot source it from there. The user re-enters
+  // their email; we verify it via /user/v1/exists and that it maps back to userId.
+  const otpContact = useMemo<{ key: string; type: OtpType } | null>(
+    () => (email ? { key: email, type: 'email' } : null),
+    [email],
+  );
 
   useEffect(() => {
     mountedRef.current = true;
@@ -85,9 +87,11 @@ export const useDeleteAccount = (
     }, 1000);
   }, []);
 
-  // ── reCAPTCHA ────────────────────────────────────────────────────────────────
-  const getCaptchaToken = useCallback((): Promise<string | null> =>
-    new Promise(resolve => triggerCaptcha(token => resolve(token))), [triggerCaptcha]);
+  // ── Email input ──────────────────────────────────────────────────────────────
+  const handleEmailChange = useCallback((value: string) => {
+    setEmail(value);
+    if (emailError) setEmailError(null);
+  }, [emailError]);
 
   // ── Conditions ───────────────────────────────────────────────────────────────
   const toggleCondition = useCallback((index: number) => {
@@ -104,14 +108,8 @@ export const useDeleteAccount = (
 
   // ── sendOtp (internal) ───────────────────────────────────────────────────────
   const sendOtp = useCallback(async (): Promise<boolean> => {
-    if (!otpContact) {
+    if (!otpContact || !userId) {
       if (mountedRef.current) setPageError(t('deleteAccountNoContact'));
-      return false;
-    }
-
-    const captchaToken = await getCaptchaToken();
-    if (captchaToken === null) {
-      if (mountedRef.current) setPageError(t('recaptchaFailed'));
       return false;
     }
 
@@ -122,7 +120,7 @@ export const useDeleteAccount = (
 
     try {
       await otpService.generate({
-        request: { key: otpContact.key, type: otpContact.type, captchaToken },
+        request: { key: otpContact.key, type: otpContact.type, userId },
       });
       if (mountedRef.current) {
         setOtpStatus('otp-sent');
@@ -138,7 +136,7 @@ export const useDeleteAccount = (
       }
       return false;
     }
-  }, [otpContact, getCaptchaToken, startTimer, t, telemetry]);
+  }, [otpContact, userId, startTimer, t, telemetry, interact]);
 
   // ── executeDelete (internal) ─────────────────────────────────────────────────
   const executeDelete = useCallback(async (): Promise<void> => {
@@ -201,19 +199,61 @@ export const useDeleteAccount = (
     try {
       if (skipOtpVerification) {
         setShowConfirmAlert(true);
-      } else {
-        const sent = await sendOtp();
-        if (mountedRef.current) {
-          if (sent) {
-            setShowOtpModal(true);
-          }
-          // pageError is already set inside sendOtp on failure
+        return;
+      }
+
+      // OTP path requires email validation + exists check before we generate.
+      const trimmed = email.trim();
+      if (!trimmed) {
+        setEmailError(t('deleteAccountEmailRequired'));
+        return;
+      }
+      if (!EMAIL_RE.test(trimmed)) {
+        setEmailError(t('deleteAccountEmailInvalid'));
+        return;
+      }
+
+      setEmailError(null);
+      setIsCheckingEmail(true);
+      try {
+        const existsResp = await userService.checkEmailExists(trimmed);
+        if (!mountedRef.current) return;
+        // The http-client adapter auto-extracts `result` from the Sunbird envelope,
+        // so `existsResp.data` is already { exists, id?, name? } — not wrapped further.
+        const result = existsResp.data as { exists?: boolean; id?: string; name?: string } | undefined;
+        if (!result?.exists) {
+          setEmailError(t('deleteAccountEmailNotFound'));
+          return;
         }
+        // The endpoint doesn't always return `id` (depends on backend privacy config).
+        // When it does, enforce it matches the logged-in user; when it doesn't,
+        // trust `exists: true` — the OTP step still gates on mailbox access, and
+        // /user/v1/delete uses the auth-token userId regardless of what was typed.
+        if (result.id && result.id !== userId) {
+          setEmailError(t('deleteAccountEmailMismatch'));
+          telemetry.error({ edata: { err: 'DELETE_ACCOUNT_EMAIL_MISMATCH', errtype: 'USER', stacktrace: '' } });
+          return;
+        }
+      } catch {
+        if (mountedRef.current) {
+          setEmailError(t('deleteAccountEmailCheckFailed'));
+          telemetry.error({ edata: { err: 'USER_EXISTS_FAILED', errtype: 'SYSTEM', stacktrace: '' } });
+        }
+        return;
+      } finally {
+        if (mountedRef.current) setIsCheckingEmail(false);
+      }
+
+      // Email verified — now (and only now) generate the OTP.
+      // sendOtp reads `email` via otpContact useMemo, so it's already the value we validated.
+      const sent = await sendOtp();
+      if (mountedRef.current && sent) {
+        setShowOtpModal(true);
       }
     } finally {
       if (mountedRef.current) isSubmittingRef.current = false;
     }
-  }, [allChecked, skipOtpVerification, sendOtp, t, telemetry]);
+  }, [allChecked, skipOtpVerification, email, userId, sendOtp, t, telemetry, interact]);
 
   // ── handleOtpChange ───────────────────────────────────────────────────────────
   const handleOtpChange = useCallback((index: number, value: string) => {
@@ -253,7 +293,12 @@ export const useDeleteAccount = (
 
     try {
       await otpService.verify({
-        request: { key: otpContact!.key, type: otpContact!.type, otp: otpValue.join('') },
+        request: {
+          key: otpContact!.key,
+          type: otpContact!.type,
+          otp: otpValue.join(''),
+          userId: userId!,
+        },
       });
 
       if (!mountedRef.current) return;
@@ -285,7 +330,7 @@ export const useDeleteAccount = (
     } finally {
       if (mountedRef.current) isSubmittingRef.current = false;
     }
-  }, [otpValue, maxAttemptsReached, otpContact, executeDelete, t, telemetry]);
+  }, [otpValue, maxAttemptsReached, otpContact, userId, executeDelete, t, telemetry, interact]);
 
   // ── handleResendOtp ──────────────────────────────────────────────────────────
   const handleResendOtp = useCallback(async (): Promise<void> => {
@@ -344,6 +389,10 @@ export const useDeleteAccount = (
   }, [executeDelete, t]);
 
   return {
+    email,
+    emailError,
+    isCheckingEmail,
+    handleEmailChange,
     checkedConditions,
     allChecked,
     otpValue,
