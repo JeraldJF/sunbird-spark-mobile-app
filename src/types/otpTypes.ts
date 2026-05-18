@@ -1,4 +1,4 @@
-export type OtpType = 'phone' | 'email';
+export type OtpType = 'phone' | 'email' | 'userId';
 
 export interface OtpGenerateRequest {
   request: {

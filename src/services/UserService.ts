@@ -164,6 +164,8 @@ class UserService {
         'roles',
         'organisations',
         'framework',
+        'status',
+        'isDeleted',
       ].join(',');
       const response = await getClient().get(`/user/v5/read/${userId}?fields=${fields}`);
 
@@ -216,6 +218,11 @@ class UserService {
   /** Accept TnC for the given version */
   async acceptTnC(request: { version: string; userId?: string }): Promise<ApiResponse<any>> {
     return getClient().post('/user/v1/tnc/accept', { request });
+  }
+
+  /** Permanently delete the user account server-side */
+  async deleteUser(userId: string): Promise<ApiResponse<any>> {
+    return getClient().post('/user/v1/delete', { request: { userId } });
   }
 }
 
