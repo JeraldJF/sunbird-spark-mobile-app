@@ -41,7 +41,7 @@ const readStored = (key: string, fallback: string): string => {
   }
 };
 
-const isKnownTemplateId = (v: string): boolean => TEMPLATES.some(t => t.id === v);
+const isKnownTemplateId = (v: string): boolean => TEMPLATES.some((t) => t.id === v);
 
 const SCRIPT_LOCALES = new Set(['ar', 'hi']);
 

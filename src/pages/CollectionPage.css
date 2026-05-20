@@ -548,7 +548,7 @@
 .cp-batch-select:focus {
   outline: none;
   border-color: var(--ion-color-primary);
-  box-shadow: 0 0 0 3px rgba(var(--ion-color-primary-rgb), 0.15);
+  box-shadow: 0 0 0 3px hsl(var(--sunbird-spark-theme-primary-hsl) / 0.15);
 }
 
 .cp-batch-select-icon {
@@ -578,7 +578,7 @@
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(var(--ion-color-primary-rgb), 0.3);
+  box-shadow: 0 4px 12px hsl(var(--sunbird-spark-theme-primary-hsl) / 0.3);
   transition: opacity 0.2s;
 }
 
@@ -878,7 +878,7 @@
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(var(--ion-color-primary-rgb), 0.3);
+  box-shadow: 0 4px 12px hsl(var(--sunbird-spark-theme-primary-hsl) / 0.3);
 }
 
 .cp-download-sheet-btn:disabled {

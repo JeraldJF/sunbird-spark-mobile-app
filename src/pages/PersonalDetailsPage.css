@@ -282,7 +282,7 @@
 
 .otp-box:focus {
     border-color: var(--ion-color-primary);
-    box-shadow: 0 0 0 0.125rem rgba(var(--ion-color-primary-rgb), 0.15);
+    box-shadow: 0 0 0 0.125rem hsl(var(--sunbird-spark-theme-primary-hsl) / 0.15);
 }
 
 /* Timer + Resend row */

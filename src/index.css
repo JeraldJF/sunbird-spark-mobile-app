@@ -1415,7 +1415,7 @@ ion-tab-button:hover {
 }
 
 .profile-settings-icon-sync {
-    background: rgba(var(--ion-color-primary-rgb), 0.1);
+    background: hsl(var(--sunbird-spark-theme-primary-hsl) / 0.1);
 }
 
 .profile-settings-icon-sync ion-icon {
@@ -1471,7 +1471,7 @@ ion-tab-button:hover {
 .profile-settings-option-btn.active-sync {
     background: var(--ion-color-primary);
     color: var(--ion-color-primary-contrast);
-    box-shadow: 0 0.25rem 0.75rem rgba(var(--ion-color-primary-rgb), 0.25);
+    box-shadow: 0 0.25rem 0.75rem hsl(var(--sunbird-spark-theme-primary-hsl) / 0.25);
 }
 
 .profile-settings-option-btn.active-download {

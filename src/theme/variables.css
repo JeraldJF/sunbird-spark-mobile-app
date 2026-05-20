@@ -17,6 +17,8 @@
   --sunbird-spark-theme-chip-h: 45;
   --sunbird-spark-theme-chip-s: 100%;
   --sunbird-spark-theme-icon-h: 28;
+  /** Shorthand: 3-value HSL composite for use in `hsl(var(--...-hsl) / alpha)` syntax. */
+  --sunbird-spark-theme-primary-hsl: var(--sunbird-spark-theme-primary-h) var(--sunbird-spark-theme-primary-s) var(--sunbird-spark-theme-primary-l);
   /** Completion ring track — derived from chip seed (desaturated for soft warm tone). */
   --sunbird-progress-track: hsl(var(--sunbird-spark-theme-chip-h) 75% 76%);
 

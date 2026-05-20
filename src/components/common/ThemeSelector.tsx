@@ -55,7 +55,7 @@ export const ThemeSelector: React.FC = () => {
         <div className="theme-selector-panel">
           <div className="theme-selector-section-label">Theme</div>
           <div className="theme-selector-swatches">
-            {themes.map(t => {
+            {themes.map((t) => {
               const isActive = t.id === themeId;
               return (
                 <button
@@ -110,6 +110,8 @@ export const ThemeSelector: React.FC = () => {
                     fontWeight: isActive ? 600 : 400,
                   }}
                   onClick={() => setFontId(f.id)}
+                  aria-pressed={isActive}
+                  aria-label={f.label}
                 >
                   {f.label}
                 </button>
