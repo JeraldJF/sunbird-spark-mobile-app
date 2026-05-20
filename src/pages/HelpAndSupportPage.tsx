@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { resolveLabel } from '../utils/formLocaleResolver';
 import { BottomNavigation } from '../components/layout/BottomNavigation';
 import { LanguageSelector } from '../components/common/LanguageSelector';
+import { ThemeSelector } from '../components/common/ThemeSelector';
 import { useFaqData } from '../hooks/useFaqData';
 import { useFormRead } from '../hooks/useFormRead';
 import './HelpAndSupportPage.css';
@@ -101,6 +102,7 @@ const HelpAndSupportPage: React.FC = () => {
                             <WriteIcon />
                         </button>
                         <LanguageSelector />
+                        <ThemeSelector />
                     </div>
                 </div>
             </IonHeader>

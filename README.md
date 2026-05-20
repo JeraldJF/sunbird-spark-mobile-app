@@ -163,3 +163,349 @@ If anything fails mid-run, all file changes are rolled back automatically.
 > **The first AAB you upload to Play Console permanently locks the signing keystore for that app ID. Never change the keystore after the first upload.**
 
 If you changed the keystore and got rejected by Play Console, the only fix is to register a new app ID and run the script above with the new ID.
+
+---
+
+## Theming System
+
+The mobile app retints from a single block of CSS variables in `src/theme/variables.css` driven by 6 seed values per theme. Themes, fonts, and templates are defined in one file (`src/theme/themes.ts`) and applied at runtime via `ThemeContext`. The user picks color / font / template from the brush icon in any authenticated header — selection persists in `localStorage`.
+
+Three concepts:
+
+1. **Color theme** — 6 seed HSL values drive every brand color in the app.
+2. **Font family** — 1 variable drives the font used everywhere.
+3. **Template** — `data-template` attribute on `<html>` controls radius scale + flat/soft shadows. Picking a template also auto-applies its preset color theme and preset font.
+
+---
+
+### Part 1 — Colour Theme (6 Seed Values)
+
+A theme is six HSL numbers. Open `src/theme/variables.css` and find the seed block at the top of `:root`:
+
+```css
+--sunbird-spark-theme-primary-h: 12;
+--sunbird-spark-theme-primary-s: 50%;
+--sunbird-spark-theme-primary-l: 45%;
+--sunbird-spark-theme-chip-h: 45;
+--sunbird-spark-theme-chip-s: 100%;
+--sunbird-spark-theme-icon-h: 28;
+```
+
+Every other color token in the app — Ionic `--ion-color-primary` / `-shade` / `-tint`, Tailwind `--primary` / `--orange-primary`, brand-adjacent tokens (`--color-cc4b30`, `--color-ab4a2c`, `--color-a14f34`, `--color-d4874e`, `--color-fdf8f0`), warm-yellow surfaces (`--color-warm-yellow`), warning + warning-shade (used for hero ball / progress ring tracks) — is **derived** from these 6 seeds.
+
+#### What each variable means
+
+Colours use **HSL**: Hue–Saturation–Lightness.
+
+- **Hue (h)** — `0–360`. `0` = red, `120` = green, `240` = blue.
+- **Saturation (s)** — `0%–100%`. `0%` = gray, `100%` = vivid.
+- **Lightness (l)** — `0%–100%`. `0%` = black, `50%` = pure, `100%` = white.
+
+| # | Variable | Drives |
+|---|---|---|
+| 1 | `--sunbird-spark-theme-primary-h` | Hue of primary brand color (buttons, active links, progress fills, focus rings) |
+| 2 | `--sunbird-spark-theme-primary-s` | Saturation of primary |
+| 3 | `--sunbird-spark-theme-primary-l` | Lightness of primary |
+| 4 | `--sunbird-spark-theme-chip-h` | Hue of chip/badge/secondary surfaces, warm-yellow, progress ring track |
+| 5 | `--sunbird-spark-theme-chip-s` | Saturation of chip surfaces |
+| 6 | `--sunbird-spark-theme-icon-h` | Hue of muted icons + primary-tint (hover) variants. Lightness locked for readability. |
+
+Primary uses 3 values (hue + saturation + lightness) because the primary CTA needs exact shade control. Chip and icon only need hue — their lightness is fixed per token.
+
+---
+
+### Part 2 — Adding a New Color Theme
+
+Open `src/theme/themes.ts` and append an entry to the `THEMES` array:
+
+```ts
+export const THEMES: ThemeSeed[] = [
+  { id: 'terracotta', label: 'Terracotta', primaryH: 12,  primaryS: 50, primaryL: 45, chipH: 45,  chipS: 100, iconH: 28 },
+  // ... existing themes ...
+
+  // NEW:
+  { id: 'forest', label: 'Forest', primaryH: 140, primaryS: 40, primaryL: 32, chipH: 140, chipS: 40, iconH: 130 },
+];
+```
+
+That's it. The swatch in the ThemeSelector is auto-derived from `primaryH/S/L` (no swatch field needed). The progress ring track is auto-derived from `chipH` (no progressTrack field needed).
+
+**You do NOT need to touch:**
+- `variables.css` — seeds applied via JS by `applyTheme()`
+- `ThemeContext.tsx`, `ThemeSelector.tsx` — read from `THEMES` array
+- Any component — they all reference derived CSS variables
+
+---
+
+### Part 3 — Font Family
+
+Default fonts (`src/theme/themes.ts`):
+
+```ts
+export const FONTS: FontOption[] = [
+  { id: 'poppins', label: 'Poppins', family: "'Poppins', sans-serif" },
+  { id: 'rubik',   label: 'Rubik',   family: "'Rubik', sans-serif" },
+  { id: 'satisfy', label: 'Satisfy', family: "'Satisfy', cursive" },
+  { id: 'lora',    label: 'Lora',    family: "'Lora', serif" },
+];
+```
+
+The selected font's `family` is written to `--ion-font-family` on `<html>`, which is read by Ionic's font system and the global `body` rule.
+
+**Language note:** Arabic (`ar`) and Hindi (`hi`) force script-specific fonts (Noto Sans Arabic / Devanagari) regardless of user font choice. Other languages honor the ThemeSelector pick.
+
+---
+
+### Part 4 — Adding a New Font
+
+Two-step recipe:
+
+**Step 1** — `src/index.css`: add font file source.
+
+Option A — Google Fonts CDN (simplest):
+
+```css
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Satisfy&family=Lora:wght@400;500;600;700&family=Inter:wght@300..700&display=swap');
+```
+
+Option B — self-host woff2 in `src/assets/fonts/` with `@font-face` blocks (recommended for offline-first apps; pattern shown in `index.css` for Rubik / Noto Sans variants).
+
+**Step 2** — `src/theme/themes.ts`: append to `FONTS`:
+
+```ts
+{ id: 'inter', label: 'Inter', family: "'Inter', sans-serif" },
+```
+
+That's it. Inter shows up in the ThemeSelector font list automatically.
+
+---
+
+### Part 5 — Template (Classic / Modern / Custom)
+
+A template = `data-template` attribute on `<html>` + radius/shadow token scale + preset color + preset font.
+
+Existing templates (`src/theme/themes.ts`):
+
+```ts
+export const TEMPLATES: TemplateOption[] = [
+  { id: 'classic', label: 'Classic', description: 'Warm, rounded', presetThemeId: 'terracotta', presetFontId: 'rubik' },
+  { id: 'modern',  label: 'Modern',  description: 'Sharp, bold',   presetThemeId: 'pink',       presetFontId: 'poppins' },
+  { id: 'royal',   label: 'Royal',   description: 'Mint serif',    presetThemeId: 'mint',       presetFontId: 'lora' },
+];
+```
+
+When the user picks a template:
+1. `data-template="<id>"` is set on `<html>` — CSS picks up token values from `src/theme/overrides.css`
+2. The `presetThemeId` color is auto-applied
+3. The `presetFontId` font is auto-applied
+4. User can still override color or font afterward — template attr stays, color/font drift
+
+#### How Radius (and Shadows) Work — Token-Driven (portal-parity)
+
+Every surface in the app uses CSS variable tokens, not literal values:
+
+```css
+/* Component CSS — uses tokens, not literals */
+.compact-course-card { border-radius: var(--r-md); box-shadow: var(--sunbird-shadow-md); }
+.hero-cta-button     { border-radius: var(--r-sm); }
+.profile-avatar      { border-radius: 50%; }   /* circles stay 50%, never tokens */
+```
+
+`src/theme/overrides.css` defines two kinds of design tokens, used everywhere in component CSS:
+
+| Token family | Tokens | What it controls |
+|---|---|---|
+| **Radius** | `--r-xxs`, `--r-xs`, `--r-sm`, `--r-md`, `--r-lg`, `--r-xl`, `--r-pill` | `border-radius` on cards, buttons, inputs, modals, etc. Bigger token = bigger corner. `--r-pill` = fully round capsule. |
+| **Shadow** | `--sunbird-shadow-sm`, `--sunbird-shadow-md`, `--sunbird-shadow-lg` | `box-shadow` on cards/popovers. `sm` = subtle, `md` = standard card, `lg` = elevated modal. |
+
+The `:root` block sets the **first-paint defaults** (Classic look). Per-template blocks redefine the same tokens — that's the entire template system.
+
+```css
+/* :root — first-paint default (Classic values) */
+:root {
+  /* Radius scale: smaller key = sharper corner */
+  --r-xxs: 0.25rem;   /* 4px  — small chip, tiny dot */
+  --r-xs:  0.375rem;  /* 6px  — compact badge */
+  --r-sm:  0.5rem;    /* 8px  — buttons, inputs */
+  --r-md:  0.875rem;  /* 14px — cards, modals (default) */
+  --r-lg:  1.25rem;   /* 20px — large cards, tiles */
+  --r-xl:  1.75rem;   /* 28px — feature surfaces */
+  --r-pill: 9999px;   /* fully round pills */
+
+  /* Shadow scale: each one is `offset-x offset-y blur color` */
+  --sunbird-shadow-sm: 0 0.125rem 0.5rem rgba(0,0,0,0.06);
+  --sunbird-shadow-md: 0 0 0.75rem 0 rgba(0,0,0,0.12);
+  --sunbird-shadow-lg: 0 0.25rem 1.25rem rgba(0,0,0,0.15);
+}
+
+/* Per-template — only the tokens change, no selector lists */
+html[data-template="modern"] {
+  --r-sm: 0.25rem; --r-md: 0.375rem; --r-lg: 0.5rem; --r-xl: 0.625rem; --r-pill: 0.5rem;
+  --sunbird-shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --sunbird-shadow-md: 0 1px 3px rgba(0,0,0,0.06);
+  --sunbird-shadow-lg: 0 2px 8px rgba(0,0,0,0.08);
+}
+```
+
+**Mental model:** components ask for `var(--r-md)` — the value at lookup time depends on which template is active.
+
+Because all components read tokens, redefining the tokens for a template **automatically retunes every card, button, modal, badge, input, etc.** — no per-component selectors needed.
+
+A template **without** an override block inherits the `:root` (Classic) values.
+
+---
+
+### Part 6 — Adding a New Template
+
+Two questions decide the workflow:
+
+| Question | Answer | What you edit |
+|---|---|---|
+| Reuses existing color + font + radius? | Yes | `themes.ts` only |
+| Needs new color or new font? | Yes | Add to `THEMES` / `FONTS` first (Parts 2 + 4), then `themes.ts` |
+| Needs custom radius / shadow? | Yes | Add a token block in `overrides.css` |
+| Skip the radius block | — | Template **automatically inherits Classic radii** (the `:root` defaults) |
+
+**Case A — Keep Classic radius (no custom radius needed):**
+
+One entry in `src/theme/themes.ts`. That's it.
+
+```ts
+{ id: 'professional', label: 'Professional', description: 'Blue rubik',
+  presetThemeId: 'blue', presetFontId: 'rubik' }
+```
+
+No `overrides.css` change. The new template uses the same rounded radius as Classic.
+
+**Case B — Want sharp/different radius for this template:**
+
+Step 1: Add the template entry to `TEMPLATES` in `src/theme/themes.ts` (same as Case A).
+
+Step 2: Add a token block in `src/theme/overrides.css`:
+
+```css
+html[data-template="<your-id>"] {
+  --r-xxs: 0.125rem;
+  --r-xs: 0.25rem;
+  --r-sm: 0.25rem;
+  --r-md: 0.5rem;
+  --r-lg: 0.75rem;
+  --r-xl: 1rem;
+  --r-pill: 0.5rem;
+
+  /* Optional — flatten shadows too */
+  --sunbird-shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --sunbird-shadow-md: 0 1px 3px rgba(0,0,0,0.06);
+  --sunbird-shadow-lg: 0 2px 8px rgba(0,0,0,0.08);
+}
+```
+
+That's the **only** thing needed. No per-component selectors. Every card, button, modal in the app reads these tokens and auto-applies the new scale.
+
+**Case C — New color or font:**
+
+1. Add to `THEMES` (Part 2) and/or `FONTS` (Part 4) first.
+2. Then add the template entry referencing the new ids.
+3. Optionally add a radius token block (Case B).
+
+**Why no per-component selectors anymore:** Component CSS already uses `var(--r-md)` etc. (migrated in the codebase). New components added later only need to use tokens — they become template-aware automatically.
+
+---
+
+### Part 7 — Default Theme on First Launch
+
+On app start, `ThemeContext` reads `localStorage`:
+
+| Key | Falls back to |
+|---|---|
+| `sunbird-theme` | `terracotta` (`DEFAULT_THEME_ID`) |
+| `sunbird-font` | `rubik` (`DEFAULT_FONT_ID`) |
+| `sunbird-template` | `classic` (`DEFAULT_TEMPLATE_ID`) |
+
+So a fresh install loads: **Terracotta colors + Rubik font + Classic radius** = the original brick/ivory look.
+
+To change defaults app-wide, edit these constants in `src/theme/themes.ts`:
+
+```ts
+export const DEFAULT_THEME_ID = 'terracotta';
+export const DEFAULT_FONT_ID = 'rubik';
+export const DEFAULT_TEMPLATE_ID = 'classic';
+```
+
+---
+
+### Part 8 — How It Works at Runtime
+
+`src/contexts/ThemeContext.tsx` owns the state:
+
+```ts
+{ themeId, fontId, templateId, setThemeId, setFontId, setTemplateId }
+```
+
+On any state change, the matching `apply*()` function from `themes.ts` writes the appropriate CSS variable or HTML attribute:
+
+- `applyTheme(theme)` → sets `--sunbird-spark-theme-*` CSS vars on `<html>`
+- `applyFont(font)` → sets `--ion-font-family` (unless Arabic/Hindi is active — see language note)
+- `applyTemplate(id)` → sets `data-template="<id>"` on `<html>`
+
+Picking a template via `setTemplateId(id)` cascades automatically: it calls `setThemeIdState(tpl.presetThemeId)` and `setFontIdState(tpl.presetFontId)` so the preset color + font fire too.
+
+---
+
+### Quick Reference — Where to Edit What
+
+| To do this | Edit |
+|---|---|
+| Change default look (first launch) | `DEFAULT_*_ID` constants in `src/theme/themes.ts` |
+| Add color theme | `THEMES` array in `src/theme/themes.ts` |
+| Add font | `src/index.css` (`@import` or `@font-face`) + `FONTS` array in `src/theme/themes.ts` |
+| Add template (Classic radius) | `TEMPLATES` array in `src/theme/themes.ts` only |
+| Add template (custom radius) | `TEMPLATES` array + token block `html[data-template="<id>"] { --r-*: ...; --sunbird-shadow-*: ...; }` in `src/theme/overrides.css` |
+| Tweak global radius scale for a template | Edit the matching `html[data-template="<id>"]` token block in `src/theme/overrides.css` |
+| New component should be template-aware | Use `border-radius: var(--r-md)` and `box-shadow: var(--sunbird-shadow-md)` in the component's CSS — no other changes needed |
+| Change which surfaces inherit chip-tinted tracks | `--sunbird-progress-track`, `--ion-color-warning*` in `src/theme/variables.css` |
+
+---
+
+### Behavior Notes
+
+- **Original look preserved** when all defaults are kept (Terracotta + Rubik + Classic).
+- **Stat tiles are FIXED** (Total Courses teal, In Progress orange, Completed green, Certifications lavender) — they do NOT retint across themes. Matches portal `[FIXED]` parity. Defined in `src/components/home/learning-started/LearningStatsGrid.tsx` and `src/index.css` `.profile-stat-*` as static rgb literals.
+- **Category gradients are FIXED** (decorative, not brand identity).
+- **Google login G logo, Sunbird brand logo, dissolveParticles** stay static (brand identity).
+- **Empty rating stars** stay gray (semantic unfilled state).
+- **Notification trash icon** uses `currentColor` → inherits primary-tint via CSS class.
+- **All ion components, Tailwind utilities, SVG strokes** using `var(--ion-color-primary, …)` retint automatically with theme change.
+
+---
+
+### Adding a New Theme — Example
+
+Say you want to add a **"Sunrise"** theme (warm orange) and a **"Sky"** template that bundles Sunrise + Poppins + Modern radius:
+
+**1. Add color theme** — `src/theme/themes.ts`:
+
+```ts
+{ id: 'sunrise', label: 'Sunrise', primaryH: 24, primaryS: 95, primaryL: 53, chipH: 35, chipS: 100, iconH: 20 },
+```
+
+> **Note:** these 6 fields (`primaryH/S/L`, `chipH/S`, `iconH`) are the **same 6 seed values** from Part 1 — no new variables. They drive the same `--sunbird-spark-theme-*` CSS vars; `applyTheme()` just reads them off the THEMES entry. `id` and `label` are metadata (identifier + UI display name).
+
+**2. Add template** — `src/theme/themes.ts`:
+
+```ts
+{ id: 'sky', label: 'Sky', description: 'Modern sunrise', presetThemeId: 'sunrise', presetFontId: 'poppins' },
+```
+
+**3. (Optional) Sky needs Modern radius — already exists.** If you want a custom radius scale just for Sky, add to `src/theme/overrides.css`:
+
+```css
+html[data-template="sky"] {
+  --r-sm: 0.125rem;
+  --r-md: 0.25rem;
+  --r-lg: 0.5rem;
+  --r-pill: 0.5rem;
+}
+```
+
+Restart dev server. Both **Sunrise** swatch and **Sky** template appear in the ThemeSelector. Tap Sky → Sunrise colors + Poppins font + Sky radius applied atomically. User can still override color or font afterward.
