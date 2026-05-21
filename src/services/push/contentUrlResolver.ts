@@ -2,15 +2,14 @@
  * Resolves a `contentURL` from a push payload to a navigation target.
  *
  * The backend may send:
- *   - A relative path  ("/content/do_123")           → push directly
- *   - An absolute URL  ("https://example.org/play/content/do_123")
+ *   - A relative path  ("/content/do_123", "/profile/learning") → push directly
+ *   - An absolute URL  ("https://example.org/explore/subject/maths")
  *       - If the path matches a known internal pattern → strip host & route in-app
  *       - Otherwise → open in external browser
  *
- * The known-pattern list mirrors legacy SunbirdEd deep-link behaviour and lives
- * here as a static table rather than a backend system setting. If a new content
- * type is introduced, add its pattern below — keep the list short and explicit
- * so it stays auditable.
+ * The internal pattern list is intentionally narrow: only known top-level routes
+ * of this app are listed. If a new route is added that backend wants to deep-link
+ * to via absolute URLs, add its pattern here — keep the list short and explicit.
  */
 
 type Internal = { kind: 'internal'; path: string };
@@ -27,10 +26,6 @@ interface PatternMap {
 }
 
 const INTERNAL_PATTERNS: PatternMap[] = [
-  // /play/content/:id, /resources/play/content/:id, /play/collection/:id
-  { match: /^\/(?:resources\/)?play\/(?:content|collection)\/([^/?#]+)/, toPath: (m) => `/content/${m[1]}` },
-  // /learn/course/:id
-  { match: /^\/learn\/course\/([^/?#]+)/, toPath: (m) => `/content/${m[1]}` },
   // /explore (search landing)
   { match: /^\/explore(?:\/.*)?$/, toPath: () => '/explore' },
   // /profile (or sub-paths) — keep namespace, strip host.
