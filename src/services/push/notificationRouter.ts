@@ -31,7 +31,11 @@ function normaliseActionData(raw: unknown): Record<string, any> {
   if (raw == null) return {};
   if (typeof raw === 'object') return raw as Record<string, any>;
   if (typeof raw === 'string') {
-    try { return JSON.parse(raw); } catch { return {}; }
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return {};
+    }
   }
   return {};
 }
