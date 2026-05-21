@@ -448,7 +448,7 @@ describe('App', () => {
     });
   });
 
-  it('does not mark read when push:tapped lacks a notification id', async () => {
+  it('does not mark read when push:tapped lacks a notification id', () => {
     mockNotificationUpdate.mockClear();
     render(<App />);
     window.dispatchEvent(
@@ -456,8 +456,8 @@ describe('App', () => {
         detail: { userId: 'user-7', actionType: 'search' },
       }),
     );
-    // Give the (potential) async chain a tick to settle, then assert no call happened.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    // The handler short-circuits synchronously when notificationId is absent,
+    // so we can assert immediately without waiting for any async chain.
     expect(mockNotificationUpdate).not.toHaveBeenCalled();
   });
 
