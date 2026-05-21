@@ -1,7 +1,47 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
-buildscript {
+// Centralized security-pinned versions to address Dependabot CVEs.
+// Version constants live in gradle.properties (loaded before script parsing).
+// Bump nettyVersion / protobufVersion there to roll out a fix across both classpaths.
 
+def nettyV = project.findProperty('nettyVersion') ?: '4.1.133.Final'
+def protobufV = project.findProperty('protobufVersion') ?: '3.25.5'
+
+def nettyModules = [
+    'netty-common',
+    'netty-buffer',
+    'netty-transport',
+    'netty-transport-native-unix-common',
+    'netty-resolver',
+    'netty-codec',
+    'netty-codec-http',
+    'netty-codec-http2',
+    'netty-codec-socks',
+    'netty-handler',
+    'netty-handler-proxy',
+]
+
+def nettyPins = nettyModules.collect { "io.netty:${it}:${nettyV}" }
+
+// Build-time only (Gradle/AGP classpath). Not shipped in APK.
+def buildClasspathPins = [
+    'org.bouncycastle:bcprov-jdk18on:1.84',
+    'org.bouncycastle:bcpkix-jdk18on:1.84',
+    'org.bouncycastle:bcutil-jdk18on:1.84',
+    'org.jdom:jdom2:2.0.6.1',
+    'org.bitbucket.b_c:jose4j:0.9.6',
+    'org.apache.commons:commons-compress:1.27.1',
+    'org.apache.commons:commons-lang3:3.18.0',
+] + nettyPins
+
+// Runtime (shipped in APK). Forced via Firebase Messaging transitives.
+def runtimePins = [
+    "com.google.protobuf:protobuf-java:${protobufV}",
+    "com.google.protobuf:protobuf-javalite:${protobufV}",
+    "com.google.protobuf:protobuf-kotlin:${protobufV}",
+] + nettyPins
+
+buildscript {
     repositories {
         google()
         mavenCentral()
@@ -13,28 +53,13 @@ buildscript {
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }
+}
 
-    configurations.classpath {
-        resolutionStrategy {
-            force 'org.bouncycastle:bcprov-jdk18on:1.84'
-            force 'org.bouncycastle:bcpkix-jdk18on:1.84'
-            force 'org.bouncycastle:bcutil-jdk18on:1.84'
-            force 'org.jdom:jdom2:2.0.6.1'
-            force 'org.bitbucket.b_c:jose4j:0.9.6'
-            force 'org.apache.commons:commons-compress:1.27.1'
-            force 'org.apache.commons:commons-lang3:3.18.0'
-            force 'io.netty:netty-common:4.1.133.Final'
-            force 'io.netty:netty-buffer:4.1.133.Final'
-            force 'io.netty:netty-transport:4.1.133.Final'
-            force 'io.netty:netty-transport-native-unix-common:4.1.133.Final'
-            force 'io.netty:netty-resolver:4.1.133.Final'
-            force 'io.netty:netty-codec:4.1.133.Final'
-            force 'io.netty:netty-codec-http:4.1.133.Final'
-            force 'io.netty:netty-codec-http2:4.1.133.Final'
-            force 'io.netty:netty-codec-socks:4.1.133.Final'
-            force 'io.netty:netty-handler:4.1.133.Final'
-            force 'io.netty:netty-handler-proxy:4.1.133.Final'
-        }
+// Apply buildscript-classpath security pins after the buildscript block so the
+// script-level constants defined above are visible.
+buildscript.configurations.classpath {
+    resolutionStrategy {
+        buildClasspathPins.each { force it }
     }
 }
 
@@ -46,22 +71,9 @@ allprojects {
         mavenCentral()
     }
 
-    configurations.all {
+    configurations.configureEach {
         resolutionStrategy {
-            force 'com.google.protobuf:protobuf-java:3.25.5'
-            force 'com.google.protobuf:protobuf-javalite:3.25.5'
-            force 'com.google.protobuf:protobuf-kotlin:3.25.5'
-            force 'io.netty:netty-common:4.1.133.Final'
-            force 'io.netty:netty-buffer:4.1.133.Final'
-            force 'io.netty:netty-transport:4.1.133.Final'
-            force 'io.netty:netty-transport-native-unix-common:4.1.133.Final'
-            force 'io.netty:netty-resolver:4.1.133.Final'
-            force 'io.netty:netty-codec:4.1.133.Final'
-            force 'io.netty:netty-codec-http:4.1.133.Final'
-            force 'io.netty:netty-codec-http2:4.1.133.Final'
-            force 'io.netty:netty-codec-socks:4.1.133.Final'
-            force 'io.netty:netty-handler:4.1.133.Final'
-            force 'io.netty:netty-handler-proxy:4.1.133.Final'
+            runtimePins.each { force it }
         }
     }
 }
