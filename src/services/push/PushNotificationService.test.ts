@@ -262,6 +262,37 @@ describe('PushNotificationService', () => {
       expect(body.request).not.toHaveProperty('fcm_token');
     });
 
+    it('preserves legitimate numeric zero values in device_spec', async () => {
+      vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true);
+      vi.mocked(Preferences.get).mockImplementation(async ({ key }) => {
+        if (key === 'FCM_TOKEN') return { value: 'fcm-token-abc' };
+        return { value: null };
+      });
+      // Override getSpec for this test: 0 is a real value (e.g. sim count on a
+      // wifi-only tablet), '' and [] are placeholders that should be dropped.
+      const { deviceService } = await import('../device/deviceService');
+      vi.mocked(deviceService.getSpec).mockReturnValueOnce({
+        os: 'android',
+        make: 'Google Pixel',
+        sims: 0,
+        batteryLevel: 0,
+        camera: '',
+        cap: [],
+      });
+      mockPost.mockResolvedValue({});
+
+      await pushNotificationService.registerDevice();
+
+      const body = mockPost.mock.calls[0][1];
+      const spec = JSON.parse(body.request.device_spec);
+      // Zeros preserved
+      expect(spec.sims).toBe(0);
+      expect(spec.batteryLevel).toBe(0);
+      // Placeholders dropped
+      expect(spec).not.toHaveProperty('camera');
+      expect(spec).not.toHaveProperty('cap');
+    });
+
     it('skips the POST when the FCM token has not changed since the last registration', async () => {
       vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true);
       vi.mocked(Preferences.get).mockImplementation(async ({ key }) => {

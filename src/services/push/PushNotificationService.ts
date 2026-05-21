@@ -146,7 +146,9 @@ class PushNotificationService {
   private buildDeviceSpec(raw: Record<string, unknown>): Record<string, unknown> {
     const trimmed: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(raw)) {
-      if (value === 0 || value === '' || (Array.isArray(value) && value.length === 0)) continue;
+      // Drop only truly-missing fields. Legitimate numeric zero (e.g. battery
+      // level, sim count on a wifi-only tablet) must be preserved.
+      if (value == null || value === '' || (Array.isArray(value) && value.length === 0)) continue;
       trimmed[key] = value;
     }
     return trimmed;
