@@ -52,7 +52,7 @@ This guide assumes you already have the source code building and running locally
 
 > ⚠️ **Critical:** Once you upload your first AAB signed with a keystore, you must use **the same keystore** for every future update. If you lose it, you cannot publish updates to existing users — you'd have to publish a new app under a new package name. **Back it up immediately and store the passwords securely.**
 
-> ⚠️ **Equally critical — the Android package name (applicationId) is permanent.** Once an app is published on the Play Store, you cannot change the `applicationId` in `android/app/build.gradle` (e.g. org.sunbird.spark.app `org.sunbird.spark.app`). If you change it after publishing, the Play Store treats it as a brand-new app, existing users cannot upgrade, and your old listing is orphaned. Decide on your final `applicationId` (typically `<reverse-domain>.<appname>`, e.g. `in.yourorg.spark`) **before your first upload** and stick with it.
+> ⚠️ **Equally critical — the Android package name (applicationId) is permanent.** Once an app is published on the Play Store, you cannot change the `applicationId` in `android/app/build.gradle` (e.g. org.sunbird.spark.app). If you change it after publishing, the Play Store treats it as a brand-new app, existing users cannot upgrade, and your old listing is orphaned. Decide on your final `applicationId` (typically `<reverse-domain>.<appname>`, e.g. `in.yourorg.spark`) **before your first upload** and stick with it.
 
 From the project root:
 
