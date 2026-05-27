@@ -509,3 +509,107 @@ html[data-template="sky"] {
 ```
 
 Restart dev server. Both **Sunrise** swatch and **Sky** template appear in the ThemeSelector. Tap Sky → Sunrise colors + Poppins font + Sky radius applied atomically. User can still override color or font afterward.
+
+---
+
+### Cross-Repo Coupling — Mobile ↔ Portal ↔ Keycloak
+
+Mobile theming (colour / font / template) is **id-based and tightly coupled** with two other apps. When the app opens an auth flow (login, signup, forgot-password) in the InAppBrowser, it passes the active selection as ids — `?theme=<id>&font=<id>&template=<id>` — to the **portal**, which persists them and forwards them to the **Keycloak** login pages via same-origin `localStorage`.
+
+Each app looks ids up in its **own** catalog. **An id that exists only in the mobile app will fall back to defaults on the portal and Keycloak pages** (Classic + terracotta + Rubik). So adding a new theme/font/template to mobile alone themes only the native app — not the InAppBrowser portal pages or the Keycloak sign-in / new-password pages.
+
+**To make a new mobile colour / font / template reflect everywhere, mirror it in all three repos.** Quick map:
+
+| Add to mobile (`src/theme/themes.ts`) | Also add to Portal | Also add to Keycloak |
+|---|---|---|
+| `THEMES` (id + 6 seeds) | `COLOR_PALETTES` (same id + seeds) in `frontend/src/theme/themes.ts` | `THEME_MAP` (same id + seeds) in `…/login/template.ftl` |
+| `FONTS` (id + family) | `FONTS` + font source in `frontend/src/fonts.css` | `FONT_MAP` + `@font-face` in `…/login/resources/css/login.css` |
+| `TEMPLATES` (id) | `TEMPLATES` (+ radius block in `template-overrides.css`) | `html[data-template="<id>"]` token block in `…/login/resources/css/login.css` |
+
+Repos referenced below: **Portal** = `sunbird-spark-portal`, **Keycloak theme** = `sunbird-spark-installer/scripts/keycloak-21.1.2/themes/sunbird/login/`.
+
+#### Detailed walkthrough
+
+Worked example: a new **`sunset`** colour (`primaryH 18, primaryS 80, primaryL 50, chipH 30, chipS 90, iconH 22`), a new **`mont`** font (Montserrat), and a new **`royal`** template.
+
+**A) New colour — `sunset`**
+
+1. **Portal** — `frontend/src/theme/themes.ts`. Add to `COLOR_PALETTES` (portal uses string percentages, mobile uses plain numbers — same values, different notation):
+   ```ts
+   { id: 'sunset', name: 'Sunset',
+     seeds: { primaryH: 18, primaryS: '80%', primaryL: '50%', chipH: 30, chipS: '90%', iconH: 22 } },
+   ```
+   Then add a `THEMES` entry so it's user-selectable, binding a default font:
+   ```ts
+   { id: 'sunset', name: 'Sunset', colorId: 'sunset', fontId: 'rubik' },
+   ```
+   Nothing else — every component reads the derived CSS vars; the swatch auto-derives from the seeds.
+
+2. **Keycloak** — `…/login/template.ftl`. Find the `THEME_MAP` object in the inline `<script>` and add the same id with the same 6 seeds (note keys: `ph ps pl ch cs ih`, percentages as strings):
+   ```js
+   sunset: { ph: 18, ps: '80%', pl: '50%', ch: 30, cs: '90%', ih: 22 },
+   ```
+   The FTL writes these to the `--sunbird-spark-theme-*` CSS vars on first paint, so `login.css` retints automatically — no CSS edit needed for a colour.
+
+**B) New font — `mont` (Montserrat)**
+
+1. **Portal** — add the font source so the browser can render it. In `frontend/src/fonts.css` add an `@font-face` (self-hosted woff2 in `frontend/public/fonts/`) or an `@import`:
+   ```css
+   @font-face {
+     font-family: 'Montserrat';
+     src: url('/fonts/montserrat-variable.woff2') format('woff2');
+     font-weight: 100 900; font-display: swap;
+   }
+   ```
+   Then register it in `frontend/src/theme/themes.ts` `FONTS`:
+   ```ts
+   { id: 'mont', name: 'Montserrat', value: "'Montserrat', sans-serif" },
+   ```
+
+2. **Keycloak** — host the same woff2 under `…/login/resources/css/fonts/` and add an `@font-face` at the top of `…/login/resources/css/login.css`:
+   ```css
+   @font-face {
+     font-family: 'Montserrat';
+     src: url('fonts/montserrat-variable.woff2') format('woff2');
+     font-weight: 100 900; font-display: swap;
+   }
+   ```
+   Then add the id → family mapping to `FONT_MAP` in `…/login/template.ftl`:
+   ```js
+   mont: "'Montserrat', sans-serif",
+   ```
+   The FTL sets `--app-font-family` from this; buttons, inputs, and placeholders already consume it.
+
+**C) New template — `royal`**
+
+1. **Portal** — `frontend/src/theme/themes.ts`. Widen the union and add the template:
+   ```ts
+   // interface TemplateOption
+   id: 'classic' | 'modern' | 'royal';
+
+   // TEMPLATES array — presetThemeId/presetFontId must already exist
+   { id: 'royal', name: 'Royal', description: 'Regal serif',
+     presetThemeId: 'purple', presetFontId: 'lora' },
+   ```
+   If `royal` needs its own radius/shadow scale, add a token block in `frontend/src/styles/template-overrides.css` (omit it to inherit Classic):
+   ```css
+   html[data-template="royal"] {
+     --r-sm: 0.25rem; --r-md: 0.5rem; --r-lg: 0.75rem; --r-pill: 0.5rem;
+     --r-auth-frame: 1rem; --r-auth-panel: 1rem;
+   }
+   ```
+
+2. **Keycloak** — `…/login/resources/css/login.css`. The FTL already sets `data-template="<any id>"`, so just add a token block redefining the radius/shadow tokens for `royal` (mirrors the existing `html[data-template="modern"]` block):
+   ```css
+   html[data-template="royal"] {
+     --r-frame: 1rem;
+     --r-lg: 6px; --r-md: 6px; --r-sm: 6px; --r-xs: 6px;
+     --shadow-frame: 0 8px 20px rgba(0,0,0,0.12);
+     --shadow-card: 0 4px 10px rgba(0,0,0,0.08);
+   }
+   ```
+   Every panel/input/button consumes these tokens, so no per-element selectors are needed. Omit the block to inherit the Classic (`:root`) look.
+
+**After any Keycloak edit:** bump `styles=css/login.css?v=…` (or `template.ftl` is picked up on image rebuild) in `…/login/theme.properties` — any new `?v` value busts the browser/CDN cache — then rebuild the Keycloak image and redeploy the pod.
+
+**Defaults are safe:** unknown ids never break the other apps. The portal ignores an unknown `?theme/font/template` id (keeps its current/default selection); Keycloak's `THEME_MAP`/`FONT_MAP` lookups miss and fall back to the CSS `:root` defaults (Classic + terracotta + Rubik). So a mobile-only addition simply won't theme the portal/Keycloak pages — it won't error.
