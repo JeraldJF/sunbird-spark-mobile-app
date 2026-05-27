@@ -464,7 +464,6 @@
   align-items: center;
   gap: 0.5rem;
   z-index: 100;
-  padding-bottom: calc(0.2rem + var(--safe-area-bottom));
   cursor: pointer;
   color: var(--color-white);
 }

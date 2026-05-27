@@ -19,14 +19,21 @@ export interface ThemeSeed {
   iconH: number;
 }
 
-/** Themes match portal palette baseline (Terracotta, Blue, Teal) + Pink, Purple, Mint. */
+/**
+ * Shared catalog — same ids + same HSL across all 3 repos (mobile, portal,
+ * Keycloak). Mirror of portal COLOR_PALETTES in
+ * `sunbird-spark-portal/frontend/src/theme/themes.ts` and Keycloak THEME_MAP
+ * in `…/keycloak-21.1.2/themes/sunbird/login/template.ftl`.
+ */
 export const THEMES: ThemeSeed[] = [
   { id: 'terracotta', label: 'Terracotta', primaryH: 12, primaryS: 50, primaryL: 45, chipH: 45, chipS: 100, iconH: 28 },
   { id: 'blue', label: 'Blue', primaryH: 217, primaryS: 71, primaryL: 46, chipH: 217, chipS: 71, iconH: 200 },
   { id: 'teal', label: 'Teal', primaryH: 180, primaryS: 38, primaryL: 38, chipH: 180, chipS: 38, iconH: 170 },
-  { id: 'pink', label: 'Pink', primaryH: 336, primaryS: 75, primaryL: 43, chipH: 336, chipS: 80, iconH: 350 },
   { id: 'purple', label: 'Purple', primaryH: 270, primaryS: 55, primaryL: 45, chipH: 270, chipS: 55, iconH: 280 },
-  { id: 'mint', label: 'Mint', primaryH: 150, primaryS: 45, primaryL: 42, chipH: 150, chipS: 50, iconH: 155 },
+  { id: 'green', label: 'Green', primaryH: 145, primaryS: 45, primaryL: 35, chipH: 145, chipS: 45, iconH: 155 },
+  { id: 'indigo', label: 'Indigo', primaryH: 235, primaryS: 65, primaryL: 48, chipH: 235, chipS: 65, iconH: 220 },
+  { id: 'rose', label: 'Rose', primaryH: 345, primaryS: 60, primaryL: 45, chipH: 345, chipS: 60, iconH: 335 },
+  { id: 'amber', label: 'Amber', primaryH: 35, primaryS: 80, primaryL: 45, chipH: 35, chipS: 80, iconH: 25 },
 ];
 
 export interface FontOption {
@@ -35,10 +42,11 @@ export interface FontOption {
   family: string;
 }
 
-/** Fonts match portal selector (Poppins, Rubik, Satisfy) + Lora. */
+/** Shared font catalog — same ids across mobile, portal, Keycloak. */
 export const FONTS: FontOption[] = [
   { id: 'poppins', label: 'Poppins', family: "'Poppins', sans-serif" },
   { id: 'rubik', label: 'Rubik', family: "'Rubik', sans-serif" },
+  { id: 'inter', label: 'Inter', family: "'Inter', sans-serif" },
   { id: 'satisfy', label: 'Satisfy', family: "'Satisfy', cursive" },
   { id: 'lora', label: 'Lora', family: "'Lora', serif" },
 ];
@@ -65,8 +73,7 @@ export interface TemplateOption {
 
 export const TEMPLATES: TemplateOption[] = [
   { id: 'classic', label: 'Classic', description: 'Warm, rounded', presetThemeId: 'terracotta', presetFontId: 'rubik' },
-  { id: 'modern', label: 'Modern', description: 'Sharp, bold', presetThemeId: 'pink', presetFontId: 'poppins' },
-  { id: 'royal', label: 'Royal', description: 'Mint serif', presetThemeId: 'mint', presetFontId: 'lora' },
+  { id: 'modern', label: 'Modern', description: 'Sharp, bold', presetThemeId: 'rose', presetFontId: 'inter' },
 ];
 
 export const DEFAULT_THEME_ID = 'terracotta';

@@ -1,5 +1,10 @@
 import { InAppBrowser } from '@capacitor/inappbrowser';
 import { FormService } from './FormService';
+import {
+  THEME_STORAGE_KEY,
+  FONT_STORAGE_KEY,
+  TEMPLATE_STORAGE_KEY,
+} from '../theme/themes';
 
 interface AuthTarget {
   host: string;
@@ -46,6 +51,30 @@ class AuthWebviewService {
       .map((p) => `${encodeURIComponent(p.key)}=${encodeURIComponent(p.value)}`)
       .join('&');
     return `${target.host}${target.path}${params ? `?${params}` : ''}`;
+  }
+
+  /**
+   * Hands the mobile-app's active theme/font/template to the portal in-app
+   * browser via id-based URL params. Portal + Keycloak look up ids in their
+   * own catalogs; unknown ids fall back to defaults.
+   *
+   * Tight coupling: every theme/font/template id used here must exist in
+   * portal `THEMES`/`FONTS` (frontend/src/theme/themes.ts) AND in Keycloak
+   * `template.ftl` THEME_MAP/FONT_MAP. Adding a new option requires updating
+   * all three apps.
+   *
+   *   theme     "terracotta" | "blue" | ...
+   *   font      "rubik" | "poppins" | ...
+   *   template  "classic" | "modern"
+   */
+  private applyThemeParams(url: URL): void {
+    const themeId = localStorage.getItem(THEME_STORAGE_KEY);
+    const fontId = localStorage.getItem(FONT_STORAGE_KEY);
+    const template = localStorage.getItem(TEMPLATE_STORAGE_KEY);
+
+    if (themeId) url.searchParams.set('theme', themeId);
+    if (fontId) url.searchParams.set('font', fontId);
+    if (template) url.searchParams.set('template', template);
   }
 
   /**
@@ -182,6 +211,7 @@ class AuthWebviewService {
     url.searchParams.set('client', 'mobileApp');
     const lang = localStorage.getItem('appLanguage') || 'en';
     url.searchParams.set('lang', lang);
+    this.applyThemeParams(url);
     const finalUrl = url.toString();
 
     // Extract the callback path from redirect_uri (e.g., /oauth2callback)
@@ -210,6 +240,7 @@ class AuthWebviewService {
     url.searchParams.set('client', 'mobileApp');
     const lang = localStorage.getItem('appLanguage') || 'en';
     url.searchParams.set('lang', lang);
+    this.applyThemeParams(url);
     if (redirectUri) {
       url.searchParams.set('redirect_uri', redirectUri);
     }
