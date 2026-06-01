@@ -2,6 +2,7 @@ import React from 'react';
 import { IonHeader, IonIcon, useIonRouter } from '@ionic/react';
 import { chevronBackOutline } from 'ionicons/icons';
 import { LanguageSelector } from '../common/LanguageSelector';
+import { ThemeSelector } from '../common/ThemeSelector';
 import Notification from '../common/Notification';
 import { QRScanButton } from '../common/QRScanButton';
 import { useTranslation } from 'react-i18next';
@@ -39,6 +40,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           {showNotifications && <Notification />}
           {showScan && <QRScanButton />}
           <LanguageSelector />
+          <ThemeSelector />
         </div>
       </div>
     </IonHeader>

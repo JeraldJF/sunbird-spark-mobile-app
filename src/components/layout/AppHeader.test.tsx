@@ -30,6 +30,9 @@ vi.mock('ionicons/icons', () => ({
 vi.mock('../common/LanguageSelector', () => ({
   LanguageSelector: () => <button data-testid="lang-selector" />,
 }));
+vi.mock('../common/ThemeSelector', () => ({
+  ThemeSelector: () => <button data-testid="theme-selector" />,
+}));
 vi.mock('../common/Notification', () => ({
   default: () => <button data-testid="notification" />,
 }));

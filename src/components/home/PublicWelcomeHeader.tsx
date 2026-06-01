@@ -1,6 +1,7 @@
 import React from 'react';
 import { ASSETS } from '../../constants/assets';
 import { LanguageSelector } from '../common/LanguageSelector';
+import { ThemeSelector } from '../common/ThemeSelector';
 import Notification from '../common/Notification';
 import { QRScanButton } from '../common/QRScanButton';
 import { useIonRouter } from '@ionic/react';
@@ -34,6 +35,8 @@ export const PublicWelcomeHeader: React.FC = () => {
         <Notification />
 
         <LanguageSelector />
+
+        <ThemeSelector />
       </div>
     </div>
   );
