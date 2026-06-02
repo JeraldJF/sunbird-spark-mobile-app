@@ -189,6 +189,22 @@ jobs:
       - name: Capacitor sync
         run: npx cap sync android
 
+      - name: Debug keystore paths
+        run: |
+          echo "HOME=$HOME"
+          echo "ANDROID_USER_HOME=$ANDROID_USER_HOME"
+          echo "ANDROID_SDK_HOME=$ANDROID_SDK_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          for d in "$HOME/.android" "$ANDROID_USER_HOME" "$ANDROID_SDK_HOME/.android"; do
+            [ -n "$d" ] && echo "--- ls $d ---" && ls -la "$d" 2>/dev/null || echo "missing: $d"
+          done
+          for kp in "$HOME/.android/debug.keystore" "$ANDROID_USER_HOME/debug.keystore" "$ANDROID_SDK_HOME/.android/debug.keystore"; do
+            if [ -n "$kp" ] && [ -f "$kp" ]; then
+              echo "=== $kp ==="
+              keytool -list -v -keystore "$kp" -storepass android 2>&1 | grep -iE "SHA1:|SHA-1" | head -1
+            fi
+          done
+
       - name: Build debug APK
         run: cd android && ./gradlew clean assembleDebug --stacktrace --no-build-cache
 
