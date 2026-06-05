@@ -464,6 +464,7 @@ Picking a template via `setTemplateId(id)` cascades automatically: it calls `set
 | Tweak global radius scale for a template | Edit the matching `html[data-template="<id>"]` token block in `src/theme/overrides.css` |
 | New component should be template-aware | Use `border-radius: var(--r-md)` and `box-shadow: var(--sunbird-shadow-md)` in the component's CSS — no other changes needed |
 | Change which surfaces inherit chip-tinted tracks | `--sunbird-progress-track`, `--ion-color-warning*` in `src/theme/variables.css` |
+| Show or hide the Theme Selector dropdown | `ENABLE_THEME_SELECTOR` in `src/config/featureFlags.ts` |
 
 ---
 
@@ -476,6 +477,47 @@ Picking a template via `setTemplateId(id)` cascades automatically: it calls `set
 - **Empty rating stars** stay gray (semantic unfilled state).
 - **Notification trash icon** uses `currentColor` → inherits primary-tint via CSS class.
 - **All ion components, Tailwind utilities, SVG strokes** using `var(--ion-color-primary, …)` retint automatically with theme change.
+
+---
+
+### Feature Flags
+
+Build-time UI features can be toggled in one place, without touching environment files.
+
+**`src/config/featureFlags.ts`**
+
+```ts
+// Set to true to show the Theme Selector dropdown in the header.
+// Default: false (hidden).
+export const ENABLE_THEME_SELECTOR = false;
+```
+
+#### `ENABLE_THEME_SELECTOR`
+
+Controls the brush-icon dropdown rendered in the app headers — the public welcome header (`PublicWelcomeHeader`) and the in-app header used across the Explore, My Learning, Settings, and Help & Support pages. When `false` (the default), the dropdown is completely absent from the DOM — no hidden element, no dead tap target.
+
+**To enable:**
+
+```ts
+// src/config/featureFlags.ts
+export const ENABLE_THEME_SELECTOR = true;
+```
+
+**To disable:**
+
+```ts
+export const ENABLE_THEME_SELECTOR = false;
+```
+
+> **Note:** This is a build-time flag baked into the bundled web assets — it is **not** a runtime/remote toggle. After changing it you must rebuild the web bundle, sync it into the native project, and regenerate the APK before the change is visible on a device:
+>
+> ```bash
+> npm run build && npx cap sync android && cd android && ./gradlew assembleDebug && cd ..
+> ```
+>
+> (During local web development, `npm run dev` hot-reloads the change in the browser instantly — but a packaged APK always requires the rebuild above. See [Step 5 — Build and Run on Android](#step-5--build-and-run-on-android).)
+
+> **Note:** Disabling the selector only hides the picker UI. The `ThemeProvider` still reads any theme already persisted in `localStorage` and applies it on load — existing user selections are preserved. To reset a user's stored theme, clear the `sunbird-theme`, `sunbird-font`, and `sunbird-template` keys from `localStorage`.
 
 ---
 
