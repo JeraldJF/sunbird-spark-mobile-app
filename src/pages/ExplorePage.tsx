@@ -12,7 +12,12 @@ import { QRScanButton } from '../components/common/QRScanButton';
 import { useContentSearch } from '../hooks/useContentSearch';
 import { useFormRead } from '../hooks/useFormRead';
 import useDebounce from '../hooks/useDebounce';
-import type { ContentSearchItem } from '../types/contentTypes';
+import type { ContentSearchItem, SearchMode } from '../types/contentTypes';
+import { AiToggle } from '../components/common/AiToggle';
+import { SemanticSuggestions } from '../components/common/SemanticSuggestions';
+import { SparkleIcon } from '../components/common/SparkleIcon';
+import { AppBackIcon } from '../components/common/AppBackIcon';
+import { useNetwork } from '../providers/NetworkProvider';
 import type { ExploreFilterGroup, ExploreFilterOption, FilterState } from '../types/formTypes';
 import { resolveLabel } from '../utils/formLocaleResolver';
 import CollectionCard from '../components/content/CollectionCard';
@@ -39,6 +44,14 @@ const CloseIcon = () => (
         <path d="M1 1L13 13M13 1L1 13" stroke="var(--ion-color-primary)" strokeWidth="2" strokeLinecap="round" />
     </svg>
 );
+
+// Small grey "clear text" icon shown inside the search bar.
+const ClearIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="var(--ion-color-medium, #757575)" />
+    </svg>
+);
+
 
 // ── Helpers ──
 const COLLECTION_MIME_TYPE = 'application/vnd.ekstep.content-collection';
@@ -101,18 +114,37 @@ const ExplorePage: React.FC = () => {
         const rawDialCode = new URLSearchParams(location.search).get('dialCode') || '';
         return /^[A-Za-z0-9]+$/.test(rawDialCode) ? rawDialCode : '';
     }, [location.search]);
+    const urlMode: SearchMode = useMemo(
+        () => (new URLSearchParams(location.search).get('mode') === 'semantic' ? 'semantic' : 'keyword'),
+        [location.search]
+    );
 
     // ── Search ──
-    const [showSearch, setShowSearch] = useState(!!urlQuery);
+    const [showSearch, setShowSearch] = useState(!!urlQuery || urlMode === 'semantic');
     const [searchQuery, setSearchQuery] = useState(urlQuery);
+    const [searchMode, setSearchMode] = useState<SearchMode>(urlMode);
     const debouncedQuery = useDebounce(searchQuery, 600);
     const searchInputRef = useRef<HTMLInputElement>(null);
 
-    // Keep search state in sync with URL query parameter so deep-linking works
+    const { isOffline } = useNetwork();
+    const isSemantic = searchMode === 'semantic';
+    const semanticEmpty = isSemantic && !debouncedQuery.trim();
+
+    // Keep search state in sync with URL params so deep-linking works
     useEffect(() => {
-        setShowSearch(!!urlQuery);
+        setShowSearch(!!urlQuery || urlMode === 'semantic');
         setSearchQuery(urlQuery);
-    }, [urlQuery]);
+        setSearchMode(urlMode);
+    }, [urlQuery, urlMode]);
+
+    // AI search needs connectivity; fall back to keyword if we go offline.
+    useEffect(() => {
+        if (isOffline && isSemantic) setSearchMode('keyword');
+    }, [isOffline, isSemantic]);
+
+    const handleToggleMode = () => {
+        setSearchMode((prev) => (prev === 'semantic' ? 'keyword' : 'semantic'));
+    };
 
     // ── Filters & Sort (applied immediately on selection, like the portal) ──
     const [filters, setFilters] = useState<FilterState>({});
@@ -161,8 +193,8 @@ const ExplorePage: React.FC = () => {
 
     // ── Reset pagination when search params change ──
     const searchParamsKey = useMemo(
-        () => `${debouncedQuery}|${JSON.stringify(activeFilters)}|${JSON.stringify(sortBy)}`,
-        [debouncedQuery, activeFilters, sortBy]
+        () => `${searchMode}|${debouncedQuery}|${JSON.stringify(activeFilters)}|${JSON.stringify(sortBy)}`,
+        [searchMode, debouncedQuery, activeFilters, sortBy]
     );
 
     useEffect(() => {
@@ -171,12 +203,15 @@ const ExplorePage: React.FC = () => {
 
     // ── Content search ──
     const { data, isLoading: isQueryLoading, error: queryError, refetch } = useContentSearch({
+        searchMode,
+        enabled: !semanticEmpty,
         request: {
             limit: LIMIT,
             offset: pagination.offset,
             query: debouncedQuery,
             sort_by: sortBy,
             filters: activeFilters,
+            searchMode,
         },
     });
 
@@ -222,7 +257,10 @@ const ExplorePage: React.FC = () => {
             if (!prev) setTimeout(() => searchInputRef.current?.focus(), 50);
             return !prev;
         });
-        if (showSearch) setSearchQuery('');
+        if (showSearch) {
+            setSearchQuery('');
+            setSearchMode('keyword');
+        }
     };
 
     const handleOpenFilter = () => {
@@ -259,7 +297,11 @@ const ExplorePage: React.FC = () => {
     const leftCol = pagination.displayItems.filter((_, i) => i % 2 === 0);
     const rightCol = pagination.displayItems.filter((_, i) => i % 2 !== 0);
 
-    const isInitialLoading = isQueryLoading && pagination.offset === 0 && pagination.displayItems.length === 0;
+    // While the debounce hasn't caught up (e.g. just after clearing the query on
+    // back), treat the page as loading so the empty-state ("No content found")
+    // doesn't flash in the gap before the real fetch runs.
+    const isQuerySettling = searchQuery.trim() !== debouncedQuery.trim();
+    const isInitialLoading = (isQueryLoading || isQuerySettling) && pagination.offset === 0 && pagination.displayItems.length === 0;
     const activeFilterCount = Object.values(filters).flat().length;
 
     // ── Active filter tab group ──
@@ -277,20 +319,35 @@ const ExplorePage: React.FC = () => {
             <IonHeader className="ion-no-border">
                 <div className="page-header">
                     {showSearch ? (
-                        <div className="explore-search-bar">
-                            <SearchIcon />
-                            <input
-                                ref={searchInputRef}
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder={t('searchContentPlaceholder')}
-                                aria-label={t('searchContentPlaceholder')}
-                                className="explore-search-input"
-                            />
-                            <button onClick={handleSearchToggle} className="explore-search-close-btn" aria-label={t('closeSearch')}>
-                                <CloseIcon />
+                        <div className="explore-search-row">
+                            <button className="explore-search-back" onClick={handleSearchToggle} aria-label={t('back')}>
+                                <AppBackIcon />
                             </button>
+                            <div className={`explore-search-bar${isSemantic ? ' explore-search-bar--ai' : ''}`}>
+                                {isSemantic
+                                    ? <SparkleIcon className="ai-blink" size={18} color="var(--ion-color-primary)" />
+                                    : <SearchIcon />}
+                                <input
+                                    ref={searchInputRef}
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder={t('searchContentPlaceholder')}
+                                    aria-label={t('searchContentPlaceholder')}
+                                    className="explore-search-input"
+                                />
+                                {searchQuery && (
+                                    <button
+                                        type="button"
+                                        className="explore-clear-btn"
+                                        onClick={() => setSearchQuery('')}
+                                        aria-label={t('close')}
+                                    >
+                                        <ClearIcon />
+                                    </button>
+                                )}
+                                <AiToggle active={isSemantic} onToggle={handleToggleMode} disabled={isOffline} />
+                            </div>
                         </div>
                     ) : (
                         <>
@@ -333,21 +390,25 @@ const ExplorePage: React.FC = () => {
                         </div>
                     )}
 
-                    {isInitialLoading && (
+                    {semanticEmpty && (
+                        <SemanticSuggestions onPick={(q) => setSearchQuery(q)} offline={isOffline} />
+                    )}
+
+                    {!semanticEmpty && isInitialLoading && (
                         <PageLoader message={t('loading')} />
                     )}
 
-                    {queryError && pagination.displayItems.length === 0 && (
+                    {!semanticEmpty && queryError && pagination.displayItems.length === 0 && (
                         <PageLoader error={t('failedToLoad')} onRetry={() => refetch()} />
                     )}
 
-                    {!isInitialLoading && !queryError && pagination.displayItems.length === 0 && (
+                    {!semanticEmpty && !isInitialLoading && !queryError && pagination.displayItems.length === 0 && (
                         <div className="explore-empty-state" role="status" aria-live="polite">
                             <p>{t('noContentFound')}</p>
                         </div>
                     )}
 
-                    {pagination.displayItems.length > 0 && (
+                    {!semanticEmpty && pagination.displayItems.length > 0 && (
                         <div className="masonry-grid">
                             <div className="masonry-col">
                                 {leftCol.map((item) =>
@@ -371,7 +432,7 @@ const ExplorePage: React.FC = () => {
                     <IonInfiniteScroll
                         ref={infiniteScrollRef}
                         onIonInfinite={handleLoadMore}
-                        disabled={!pagination.hasMore || isInitialLoading}
+                        disabled={semanticEmpty || !pagination.hasMore || isInitialLoading}
                     >
                         <IonInfiniteScrollContent loadingSpinner="bubbles" />
                     </IonInfiniteScroll>

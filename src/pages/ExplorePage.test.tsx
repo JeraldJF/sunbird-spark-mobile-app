@@ -34,6 +34,11 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+// ── Mock NetworkProvider ──
+vi.mock('../providers/NetworkProvider', () => ({
+  useNetwork: () => ({ connected: true, isOffline: false }),
+}));
+
 // ── Mock LanguageSelector ──
 vi.mock('../components/common/LanguageSelector', () => ({
   LanguageSelector: () => null,
@@ -42,6 +47,17 @@ vi.mock('../components/common/LanguageSelector', () => ({
 // ── Mock QRScanButton ──
 vi.mock('../components/common/QRScanButton', () => ({
   QRScanButton: () => null,
+}));
+
+// ── Stub AppHeader (default-state header) ──
+vi.mock('../components/layout/AppHeader', () => ({
+  AppHeader: ({ title, showSearch, onSearch, actions }: any) => (
+    <div data-testid="ion-header">
+      {showSearch && <button aria-label="search" onClick={onSearch}>search</button>}
+      {title && <h1>{title}</h1>}
+      {actions}
+    </div>
+  ),
 }));
 
 // ── Mock react-router-dom ──

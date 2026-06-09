@@ -1,3 +1,10 @@
+export type SearchMode = 'keyword' | 'semantic';
+
+export interface SemanticConfig {
+  k: number;
+  min_score: number;
+}
+
 export interface ContentSearchRequest {
   filters?: Record<string, unknown>;
   facets?: string[];
@@ -5,6 +12,10 @@ export interface ContentSearchRequest {
   offset?: number;
   query?: string;
   sort_by?: Record<string, string>;
+  /** When 'semantic', the search runs against the vector index (online only). */
+  searchMode?: SearchMode;
+  /** Vector search tuning; defaults to { k: 50, min_score: 0.6 }. */
+  semantic?: SemanticConfig;
 }
 
 export interface ContentSearchItem {
@@ -50,4 +61,5 @@ export interface ContentSearchResponse {
 export interface UseContentSearchOptions {
   request?: ContentSearchRequest;
   enabled?: boolean;
+  searchMode?: SearchMode;
 }
