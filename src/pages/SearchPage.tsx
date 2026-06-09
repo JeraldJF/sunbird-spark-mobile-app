@@ -70,7 +70,6 @@ const SearchPage: React.FC = () => {
         request: debouncedQuery ? {
             query: debouncedQuery,
             limit: PREVIEW_LIMIT,
-            searchMode,
             filters: {
                 status: ['Live'],
             },

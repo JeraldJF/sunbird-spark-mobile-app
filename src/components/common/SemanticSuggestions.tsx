@@ -30,9 +30,9 @@ export const SemanticSuggestions: React.FC<SemanticSuggestionsProps> = ({ onPick
         <p className="ai-suggest__offline" role="status">{t('aiOfflineHint')}</p>
       ) : (
         <div className="ai-suggest__chips">
-          {suggestions.map((s, i) => (
+          {suggestions.map((s) => (
             <button
-              key={i}
+              key={s}
               type="button"
               className="ai-suggest__chip"
               onClick={() => onPick(s)}

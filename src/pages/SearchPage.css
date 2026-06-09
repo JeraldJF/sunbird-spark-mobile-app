@@ -162,7 +162,7 @@
 }
 
 /* Ensure cards don't shrink inside the row */
-.search-results-row>* {
+.search-results-row > * {
     flex: 0 0 10rem;
     min-width: 10rem;
     max-width: 10rem;

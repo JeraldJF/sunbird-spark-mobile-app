@@ -12,8 +12,6 @@ export interface ContentSearchRequest {
   offset?: number;
   query?: string;
   sort_by?: Record<string, string>;
-  /** When 'semantic', the search runs against the vector index (online only). */
-  searchMode?: SearchMode;
   /** Vector search tuning; defaults to { k: 50, min_score: 0.6 }. */
   semantic?: SemanticConfig;
 }

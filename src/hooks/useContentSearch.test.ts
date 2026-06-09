@@ -219,20 +219,6 @@ describe('useContentSearch', () => {
       expect(mockContentSearch).not.toHaveBeenCalled();
     });
 
-    it('should route to semanticSearch when searchMode is on the request', async () => {
-      mockSemanticSearch.mockResolvedValue({ data: {} });
-
-      renderHook(
-        () => useContentSearch({ request: { query: 'q', searchMode: 'semantic' } }),
-        { wrapper: createWrapper() }
-      );
-
-      await waitFor(() => {
-        expect(mockSemanticSearch).toHaveBeenCalled();
-      });
-      expect(mockContentSearch).not.toHaveBeenCalled();
-    });
-
     it('should NOT inject default primaryCategory in semantic mode', async () => {
       mockSemanticSearch.mockResolvedValue({ data: {} });
 

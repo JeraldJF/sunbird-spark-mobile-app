@@ -4,7 +4,7 @@ import {
     IonInfiniteScroll, IonInfiniteScrollContent, IonRefresher,
     IonRefresherContent, IonSpinner, useIonViewDidEnter,
 } from '@ionic/react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useHistory } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { BottomNavigation } from '../components/layout/BottomNavigation';
 import { LanguageSelector } from '../components/common/LanguageSelector';
@@ -109,6 +109,7 @@ const ExplorePage: React.FC = () => {
 
     // ── Read query param from URL ──
     const location = useLocation();
+    const history = useHistory();
     const urlQuery = useMemo(() => new URLSearchParams(location.search).get('query') || '', [location.search]);
     const urlDialCode = useMemo(() => {
         const rawDialCode = new URLSearchParams(location.search).get('dialCode') || '';
@@ -143,7 +144,14 @@ const ExplorePage: React.FC = () => {
     }, [isOffline, isSemantic]);
 
     const handleToggleMode = () => {
-        setSearchMode((prev) => (prev === 'semantic' ? 'keyword' : 'semantic'));
+        const next: SearchMode = isSemantic ? 'keyword' : 'semantic';
+        setSearchMode(next);
+        // Reflect the mode in the URL so back/forward and copy-paste preserve it.
+        const params = new URLSearchParams(location.search);
+        if (next === 'semantic') params.set('mode', 'semantic');
+        else params.delete('mode');
+        const qs = params.toString();
+        history.replace({ search: qs ? `?${qs}` : '' });
     };
 
     // ── Filters & Sort (applied immediately on selection, like the portal) ──
@@ -211,7 +219,6 @@ const ExplorePage: React.FC = () => {
             query: debouncedQuery,
             sort_by: sortBy,
             filters: activeFilters,
-            searchMode,
         },
     });
 

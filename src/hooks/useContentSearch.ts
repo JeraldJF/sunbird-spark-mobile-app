@@ -34,7 +34,7 @@ export const useContentSearch = (
 ): UseQueryResult<ApiResponse<ContentSearchResponse>, Error> => {
   const request = options?.request;
   const enabled = options?.enabled ?? true;
-  const searchMode = options?.searchMode ?? request?.searchMode ?? 'keyword';
+  const searchMode = options?.searchMode ?? 'keyword';
   const isSemantic = searchMode === 'semantic';
 
   // Inject the primaryCategory fallback when the user hasn't selected any category filter.
