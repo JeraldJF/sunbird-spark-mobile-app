@@ -9,6 +9,7 @@ import { ContentSearchItem, SearchMode } from '../types/contentTypes';
 import CollectionCard from '../components/content/CollectionCard';
 import ResourceCard from '../components/content/ResourceCard';
 import { AiToggle } from '../components/common/AiToggle';
+import { useAiSearchEnabled } from '../hooks/useAiSearchEnabled';
 import { SemanticSuggestions } from '../components/common/SemanticSuggestions';
 import { SparkleIcon } from '../components/common/SparkleIcon';
 import { AppBackIcon } from '../components/common/AppBackIcon';
@@ -55,6 +56,9 @@ const SearchPage: React.FC = () => {
     const { isOffline } = useNetwork();
     const isSemantic = searchMode === 'semantic';
     const showSuggestions = isSemantic && !debouncedQuery;
+
+    // AI search is gated by the native build config (gradle.properties → NativeSetting).
+    const aiSearchEnabled = useAiSearchEnabled();
 
     // AI search needs connectivity; fall back to keyword if we go offline mid-session.
     useEffect(() => {
@@ -131,7 +135,9 @@ const SearchPage: React.FC = () => {
                                     <ClearIcon />
                                 </button>
                             )}
-                            <AiToggle active={isSemantic} onToggle={handleToggleMode} disabled={isOffline} />
+                            {aiSearchEnabled && (
+                                <AiToggle active={isSemantic} onToggle={handleToggleMode} disabled={isOffline} />
+                            )}
                         </div>
                     </div>
                 </IonToolbar>

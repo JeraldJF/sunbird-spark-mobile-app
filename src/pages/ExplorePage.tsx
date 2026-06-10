@@ -14,6 +14,7 @@ import { useFormRead } from '../hooks/useFormRead';
 import useDebounce from '../hooks/useDebounce';
 import type { ContentSearchItem, SearchMode } from '../types/contentTypes';
 import { AiToggle } from '../components/common/AiToggle';
+import { useAiSearchEnabled } from '../hooks/useAiSearchEnabled';
 import { SemanticSuggestions } from '../components/common/SemanticSuggestions';
 import { SparkleIcon } from '../components/common/SparkleIcon';
 import { AppBackIcon } from '../components/common/AppBackIcon';
@@ -131,6 +132,9 @@ const ExplorePage: React.FC = () => {
     const isSemantic = searchMode === 'semantic';
     const semanticEmpty = isSemantic && !debouncedQuery.trim();
 
+    // AI search is gated by the native build config (gradle.properties → NativeSetting).
+    const aiSearchEnabled = useAiSearchEnabled();
+
     // Keep search state in sync with URL params so deep-linking works
     useEffect(() => {
         setShowSearch(!!urlQuery || urlMode === 'semantic');
@@ -142,6 +146,11 @@ const ExplorePage: React.FC = () => {
     useEffect(() => {
         if (isOffline && isSemantic) setSearchMode('keyword');
     }, [isOffline, isSemantic]);
+
+    // If AI search is disabled (incl. a stale ?mode=semantic deep link), force keyword.
+    useEffect(() => {
+        if (!aiSearchEnabled && isSemantic) setSearchMode('keyword');
+    }, [aiSearchEnabled, isSemantic]);
 
     const handleToggleMode = () => {
         const next: SearchMode = isSemantic ? 'keyword' : 'semantic';
@@ -353,7 +362,9 @@ const ExplorePage: React.FC = () => {
                                         <ClearIcon />
                                     </button>
                                 )}
-                                <AiToggle active={isSemantic} onToggle={handleToggleMode} disabled={isOffline} />
+                                {aiSearchEnabled && (
+                                    <AiToggle active={isSemantic} onToggle={handleToggleMode} disabled={isOffline} />
+                                )}
                             </div>
                         </div>
                     ) : (
